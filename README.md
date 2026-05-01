@@ -175,3 +175,10 @@ ELARA/
 ├── Dockerfile
 └── README.md
 ```
+
+## Submission Links
+
+- **GitHub Repository**: [aashitanegii/ELARA](https://github.com/aashitanegii/ELARA)
+- **Live Deployment**: [ELARA on Cloud Run](https://elara-174971475950.asia-south1.run.app/)
+- **LinkedIn Post**: [View Announcement](https://www.linkedin.com/feed/update/urn:li:ugcPost:7455959254038925312/)
+- **Dev.to Article**: [Decoding Democracy: How ELARA is Transforming Election Education Through Specialized AI](https://dev.to/aashitanegii/decoding-democracy-how-elara-is-transforming-election-education-through-specialized-ai-12jh)
