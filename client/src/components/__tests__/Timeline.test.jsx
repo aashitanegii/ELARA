@@ -4,15 +4,16 @@ import userEvent from '@testing-library/user-event';
 import Timeline from '../Timeline';
 
 describe('Timeline', () => {
-  it('renders all four election steps', () => {
+  it('renders all five election steps', () => {
     render(<Timeline onStepClick={() => {}} />);
     expect(screen.getByText('Registration')).toBeInTheDocument();
     expect(screen.getByText('Verification')).toBeInTheDocument();
-    expect(screen.getByText('Polling')).toBeInTheDocument();
+    expect(screen.getByText('Polling Day')).toBeInTheDocument();
     expect(screen.getByText('Counting')).toBeInTheDocument();
+    expect(screen.getByText('Results')).toBeInTheDocument();
   });
 
-  it('calls onStepClick with correct query when a step is clicked', async () => {
+  it('calls onStepClick with object containing query and intent when a step is clicked', async () => {
     const mockClick = vi.fn();
     const user = userEvent.setup();
 
@@ -21,24 +22,38 @@ describe('Timeline', () => {
     await user.click(screen.getByLabelText('Learn about Registration'));
     expect(mockClick).toHaveBeenCalledTimes(1);
     expect(mockClick).toHaveBeenCalledWith(
-      expect.stringContaining('voter registration')
+      expect.objectContaining({
+        query: expect.stringContaining('Registration'),
+        intent: 'timeline',
+      })
     );
   });
 
-  it('renders step numbers 1 through 4', () => {
+  it('renders step numbers 1 through 5', () => {
     render(<Timeline onStepClick={() => {}} />);
     expect(screen.getByText('1')).toBeInTheDocument();
     expect(screen.getByText('2')).toBeInTheDocument();
     expect(screen.getByText('3')).toBeInTheDocument();
     expect(screen.getByText('4')).toBeInTheDocument();
+    expect(screen.getByText('5')).toBeInTheDocument();
   });
 
   it('has accessible labels on all step buttons', () => {
     render(<Timeline onStepClick={() => {}} />);
     expect(screen.getByLabelText('Learn about Registration')).toBeInTheDocument();
     expect(screen.getByLabelText('Learn about Verification')).toBeInTheDocument();
-    expect(screen.getByLabelText('Learn about Polling')).toBeInTheDocument();
+    expect(screen.getByLabelText('Learn about Polling Day')).toBeInTheDocument();
     expect(screen.getByLabelText('Learn about Counting')).toBeInTheDocument();
+    expect(screen.getByLabelText('Learn about Results')).toBeInTheDocument();
+  });
+
+  it('renders subtitle text for each step', () => {
+    render(<Timeline onStepClick={() => {}} />);
+    expect(screen.getByText('Enroll as an eligible voter')).toBeInTheDocument();
+    expect(screen.getByText('Identity & address confirmation')).toBeInTheDocument();
+    expect(screen.getByText('Cast your vote')).toBeInTheDocument();
+    expect(screen.getByText('Votes tallied & verified')).toBeInTheDocument();
+    expect(screen.getByText('Winners declared')).toBeInTheDocument();
   });
 
   it('uses an ordered list for timeline steps', () => {

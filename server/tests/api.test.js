@@ -3,7 +3,7 @@ jest.mock('../services/gemini', () => ({
   generateResponse: jest.fn().mockResolvedValue(
     'Summary: You need to register to vote.\n\n' +
     'Steps:\n1. Visit your local election office\n2. Bring valid ID\n3. Fill out the registration form\n\n' +
-    'Confidence: 95%'
+    '[BADGE: Beginner Friendly]'
   ),
 }));
 
@@ -75,15 +75,16 @@ describe('ELARA API Tests', () => {
       expect(res.body.response.length).toBeGreaterThan(0);
     });
 
-    it('passes correct arguments to Gemini service', async () => {
+    it('passes correct arguments to Gemini service including intent', async () => {
       await request(app)
         .post('/api/ai')
-        .send({ query: 'What is polling day?', context: 'Registered' });
+        .send({ query: 'What is polling day?', context: 'Registered', intent: 'timeline' });
 
       expect(generateResponse).toHaveBeenCalledTimes(1);
       expect(generateResponse).toHaveBeenCalledWith(
         'What is polling day?',
-        'Registered'
+        'Registered',
+        'timeline'
       );
     });
 
@@ -94,7 +95,8 @@ describe('ELARA API Tests', () => {
 
       expect(generateResponse).toHaveBeenCalledWith(
         'What is an election?',
-        'General'
+        'General',
+        'general'
       );
     });
 
@@ -105,8 +107,56 @@ describe('ELARA API Tests', () => {
 
       expect(generateResponse).toHaveBeenCalledWith(
         'What is an election?',
-        'General'
+        'General',
+        'general'
       );
+    });
+
+    it('defaults intent to general when not provided', async () => {
+      await request(app)
+        .post('/api/ai')
+        .send({ query: 'How does voting work?', context: 'General' });
+
+      expect(generateResponse).toHaveBeenCalledWith(
+        'How does voting work?',
+        'General',
+        'general'
+      );
+    });
+
+    it('defaults intent to general for invalid intent value', async () => {
+      await request(app)
+        .post('/api/ai')
+        .send({ query: 'How does voting work?', intent: 'HACK_INTENT' });
+
+      expect(generateResponse).toHaveBeenCalledWith(
+        'How does voting work?',
+        'General',
+        'general'
+      );
+    });
+
+    it('accepts valid intent values', async () => {
+      for (const intent of ['journey', 'timeline', 'jargon', 'general']) {
+        generateResponse.mockClear();
+        await request(app)
+          .post('/api/ai')
+          .send({ query: 'Test query', intent });
+
+        expect(generateResponse).toHaveBeenCalledWith(
+          'Test query',
+          'General',
+          intent
+        );
+      }
+    });
+
+    it('includes intent in response body', async () => {
+      const res = await request(app)
+        .post('/api/ai')
+        .send({ query: 'Explain VVPAT', intent: 'jargon' });
+
+      expect(res.body).toHaveProperty('intent', 'jargon');
     });
 
     it('returns graceful fallback when Gemini service fails', async () => {
@@ -119,6 +169,51 @@ describe('ELARA API Tests', () => {
       expect(res.statusCode).toBe(200);
       expect(res.body).toHaveProperty('response');
       expect(res.body).toHaveProperty('powered_by', 'Google Gemini (Fallback)');
+    });
+
+    it('returns jargon-specific fallback for jargon intent failure', async () => {
+      generateResponse.mockRejectedValueOnce(new Error('API error'));
+
+      const res = await request(app)
+        .post('/api/ai')
+        .send({ query: 'Explain this election term: "Electoral College"', intent: 'jargon' });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body.response).toContain('What it means');
+      expect(res.body.response).toContain('[BADGE: Beginner Friendly]');
+      expect(res.body.intent).toBe('jargon');
+    });
+  });
+
+  // --- Walkthrough Endpoint ---
+  describe('GET /api/ai/walkthrough', () => {
+    it('returns 200 with walkthrough stages', async () => {
+      const res = await request(app).get('/api/ai/walkthrough');
+      expect(res.statusCode).toBe(200);
+      expect(res.body).toHaveProperty('stages');
+      expect(Array.isArray(res.body.stages)).toBe(true);
+      expect(res.body.stages.length).toBe(5);
+    });
+
+    it('includes all 5 election stages in order', async () => {
+      const res = await request(app).get('/api/ai/walkthrough');
+      const stageNames = res.body.stages.map((s) => s.stage);
+      expect(stageNames).toEqual(['Registration', 'Verification', 'Polling Day', 'Counting', 'Results']);
+    });
+
+    it('each stage has required fields', async () => {
+      const res = await request(app).get('/api/ai/walkthrough');
+      for (const stage of res.body.stages) {
+        expect(stage).toHaveProperty('id');
+        expect(stage).toHaveProperty('stage');
+        expect(stage).toHaveProperty('summary');
+        expect(stage).toHaveProperty('steps');
+        expect(stage).toHaveProperty('duration');
+        expect(stage).toHaveProperty('nextStage');
+        expect(stage).toHaveProperty('badge');
+        expect(Array.isArray(stage.steps)).toBe(true);
+        expect(stage.steps.length).toBeGreaterThanOrEqual(5);
+      }
     });
   });
 });

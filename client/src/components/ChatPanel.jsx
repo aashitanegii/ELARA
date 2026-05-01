@@ -2,18 +2,95 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 
 /** Generate unique message IDs to avoid array-index keys */
 let messageIdCounter = 0;
-function createMessage(role, text) {
-  return { id: ++messageIdCounter, role, text };
+function createMessage(role, text, badges = []) {
+  return { id: ++messageIdCounter, role, text, badges };
 }
+
+/** Parse [BADGE: ...] tags from response text and return { cleanText, badges } */
+function parseBadges(text) {
+  const badgeRegex = /\[BADGE:\s*([^\]]+)\]/g;
+  const badges = [];
+  let match;
+  while ((match = badgeRegex.exec(text)) !== null) {
+    badges.push(match[1].trim());
+  }
+  const cleanText = text.replace(badgeRegex, '').trim();
+  return { cleanText, badges };
+}
+
+/** Badge icon mapping */
+/**
+ * Lightweight markdown renderer — converts **bold**, ## headers, and lists to React elements.
+ * No external dependencies.
+ */
+function renderMarkdown(text) {
+  if (!text) return null;
+  const lines = text.split('\n');
+  const elements = [];
+  let key = 0;
+
+  for (const line of lines) {
+    key++;
+    // ## Header
+    if (/^#{1,3}\s/.test(line)) {
+      const content = line.replace(/^#{1,3}\s*/, '');
+      elements.push(<strong key={key} className="md-heading">{renderInline(content)}</strong>);
+      elements.push(<br key={key + 'br'} />);
+      continue;
+    }
+    // Empty line = spacing
+    if (line.trim() === '') {
+      elements.push(<br key={key} />);
+      continue;
+    }
+    // Regular line with inline formatting
+    elements.push(<span key={key}>{renderInline(line)}</span>);
+    elements.push(<br key={key + 'br'} />);
+  }
+  return elements;
+}
+
+/** Render inline **bold** and *italic* within a single line */
+function renderInline(text) {
+  const parts = [];
+  let remaining = text;
+  let idx = 0;
+  // Match **bold** patterns
+  const boldRegex = /\*\*(.+?)\*\*/g;
+  let lastIndex = 0;
+  let match;
+  while ((match = boldRegex.exec(remaining)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(remaining.slice(lastIndex, match.index));
+    }
+    parts.push(<strong key={`b${idx++}`}>{match[1]}</strong>);
+    lastIndex = boldRegex.lastIndex;
+  }
+  if (lastIndex < remaining.length) {
+    parts.push(remaining.slice(lastIndex));
+  }
+  return parts.length > 0 ? parts : text;
+}
+
+const BADGE_ICONS = {
+  'Beginner Friendly': '📘',
+  'Step-by-Step Guidance': '🧭',
+  'Next Step Ready': '🧭',
+  'Timeline Included': '⏱',
+  'Verified Educational Info': '✅',
+};
 
 export default function ChatPanel({ journey, externalQuery }) {
   const [query, setQuery] = useState('');
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [walkthroughActive, setWalkthroughActive] = useState(false);
+  const [walkthroughStep, setWalkthroughStep] = useState(0);
   const bottomRef = useRef(null);
   const prevExternalQuery = useRef('');
   const hasAutoTriggered = useRef(false);
   const lastTopicRef = useRef(null);
+  const walkthroughRef = useRef(false);
 
   /** Derive topic from query for micro-memory */
   function detectTopic(text) {
@@ -35,7 +112,7 @@ export default function ChatPanel({ journey, externalQuery }) {
   };
 
   /** Send a message to the ELARA API */
-  const sendMessage = useCallback(async (messageText) => {
+  const sendMessage = useCallback(async (messageText, intent = 'general') => {
     const q = messageText.trim();
     if (!q || loading) return;
 
@@ -47,13 +124,20 @@ export default function ChatPanel({ journey, externalQuery }) {
       const res = await fetch('/api/ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: q, context: journey, lastTopic: lastTopicRef.current }),
+        body: JSON.stringify({
+          query: q,
+          context: journey,
+          intent,
+          lastTopic: lastTopicRef.current,
+        }),
       });
       lastTopicRef.current = detectTopic(q);
       const data = await res.json();
+      const raw = data.response || data.error;
+      const { cleanText, badges } = parseBadges(raw);
       setMessages((prev) => [
         ...prev,
-        createMessage('ai', data.response || data.error),
+        createMessage('ai', cleanText, badges),
       ]);
     } catch {
       setMessages((prev) => [
@@ -70,16 +154,17 @@ export default function ChatPanel({ journey, externalQuery }) {
     if (journey === 'Not Registered' && !hasAutoTriggered.current && messages.length === 0) {
       hasAutoTriggered.current = true;
       sendMessage(
-        "I'm not registered to vote yet. Since that's my current stage, guide me through exactly what I should do next — documents needed, where to apply, and any deadlines I should know about."
+        "I'm not registered to vote yet. Since that's my current stage, guide me through exactly what I should do next — documents needed, where to apply, and any deadlines I should know about.",
+        'journey'
       );
     }
   }, [journey, messages.length, sendMessage]);
 
-  // Handle external queries from Timeline clicks
+  // Handle external queries from Timeline clicks (now receives {query, intent})
   useEffect(() => {
-    if (externalQuery && externalQuery !== prevExternalQuery.current) {
-      prevExternalQuery.current = externalQuery;
-      sendMessage(externalQuery);
+    if (externalQuery && externalQuery.query && externalQuery.query !== prevExternalQuery.current) {
+      prevExternalQuery.current = externalQuery.query;
+      sendMessage(externalQuery.query, externalQuery.intent || 'timeline');
     }
   }, [externalQuery, sendMessage]);
 
@@ -88,9 +173,35 @@ export default function ChatPanel({ journey, externalQuery }) {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, loading]);
 
+  // Guided Walkthrough — advance through stages
+  useEffect(() => {
+    if (!walkthroughActive || loading) return;
+    walkthroughRef.current = true;
+
+    const STAGES = ['Registration', 'Verification', 'Polling Day', 'Counting', 'Results'];
+    if (walkthroughStep < STAGES.length) {
+      const stage = STAGES[walkthroughStep];
+      sendMessage(
+        `Explain the ${stage} stage of the election process in detail. What happens, who is involved, how long it takes, and what comes next.`,
+        'timeline'
+      );
+      setWalkthroughStep((prev) => prev + 1);
+    } else {
+      setWalkthroughActive(false);
+      walkthroughRef.current = false;
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [walkthroughActive, walkthroughStep, loading]);
+
   const handleSubmit = (e) => {
     e.preventDefault();
-    sendMessage(query);
+    sendMessage(query, 'general');
+  };
+
+  const startWalkthrough = () => {
+    setMessages([]);
+    setWalkthroughStep(0);
+    setWalkthroughActive(true);
   };
 
   return (
@@ -118,6 +229,20 @@ export default function ChatPanel({ journey, externalQuery }) {
         }
       </div>
 
+      {walkthroughActive && (
+        <div className="walkthrough-progress" aria-live="polite">
+          <span className="walkthrough-progress-label">
+            🎓 Guided Walkthrough — Stage {Math.min(walkthroughStep, 5)} of 5
+          </span>
+          <div className="walkthrough-bar">
+            <div
+              className="walkthrough-bar-fill"
+              style={{ width: `${(Math.min(walkthroughStep, 5) / 5) * 100}%` }}
+            />
+          </div>
+        </div>
+      )}
+
       <div className="chat-messages" role="log" aria-live="polite" aria-label="Chat messages">
         {messages.length === 0 && !loading && (
           <div className="chat-empty">
@@ -130,6 +255,14 @@ export default function ChatPanel({ journey, externalQuery }) {
                   : "You're ready to vote! Ask me anything about election day."}
             </p>
             <p className="chat-hint">Click a timeline step or type a question — I'll guide you through it.</p>
+            <button
+              className="walkthrough-btn"
+              onClick={startWalkthrough}
+              aria-label="Start guided walkthrough of the full election journey"
+            >
+              <span aria-hidden="true">🎓</span>
+              Start Guided Walkthrough
+            </button>
           </div>
         )}
         {messages.map((msg) => (
@@ -141,7 +274,17 @@ export default function ChatPanel({ journey, externalQuery }) {
             <span className="message-label">
               {msg.role === 'ai' ? '🤖 ELARA' : '👤 You'}
             </span>
-            <p className="message-text">{msg.text}</p>
+            <div className="message-text">{msg.role === 'ai' ? renderMarkdown(msg.text) : msg.text}</div>
+            {msg.badges && msg.badges.length > 0 && (
+              <div className="trust-badges" aria-label="Response quality indicators">
+                {msg.badges.map((badge) => (
+                  <span key={badge} className="trust-badge">
+                    <span aria-hidden="true">{BADGE_ICONS[badge] || '✅'}</span>
+                    {badge}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
         ))}
         {loading && (

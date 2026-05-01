@@ -1,8 +1,39 @@
 const steps = [
-  { id: 1, label: 'Registration', icon: '📝', query: 'I clicked the Registration step. Based on my current stage, guide me through voter registration — what documents do I need, where do I go, and what deadlines should I watch for?' },
-  { id: 2, label: 'Verification', icon: '🔍', query: 'I clicked the Verification step. Walk me through how voter verification works — what happens after I submit my registration application?' },
-  { id: 3, label: 'Polling', icon: '🏛️', query: 'I clicked the Polling step. Tell me exactly what happens on election day at the polling station — step by step, from arrival to voting.' },
-  { id: 4, label: 'Counting', icon: '📊', query: 'I clicked the Counting step. Explain how votes are counted, verified, and how the results are officially announced.' },
+  {
+    id: 1,
+    label: 'Registration',
+    icon: '📝',
+    subtitle: 'Enroll as an eligible voter',
+    query: 'Explain the Registration stage of the election process in detail. What documents are needed, where to apply, how long it takes, and what happens after submission.',
+  },
+  {
+    id: 2,
+    label: 'Verification',
+    icon: '🔍',
+    subtitle: 'Identity & address confirmation',
+    query: 'Explain the Verification stage in elections. What happens after registration? Who checks documents? How long can it take? What happens if approved or rejected?',
+  },
+  {
+    id: 3,
+    label: 'Polling Day',
+    icon: '🏛️',
+    subtitle: 'Cast your vote',
+    query: 'Explain exactly what happens on Polling Day at the polling station — step by step, from arrival to casting your vote and ink marking.',
+  },
+  {
+    id: 4,
+    label: 'Counting',
+    icon: '📊',
+    subtitle: 'Votes tallied & verified',
+    query: 'Explain how vote Counting works after elections. How are EVMs opened, who supervises, how are VVPAT slips verified, and how are results officially declared?',
+  },
+  {
+    id: 5,
+    label: 'Results',
+    icon: '📢',
+    subtitle: 'Winners declared',
+    query: 'Explain the Results stage of elections. How are winners officially announced, what is a Certificate of Election, and what happens if results are disputed?',
+  },
 ];
 
 export default function Timeline({ onStepClick }) {
@@ -17,12 +48,13 @@ export default function Timeline({ onStepClick }) {
           <li key={step.id} className="timeline-item">
             <button
               className="timeline-step"
-              onClick={() => onStepClick(step.query)}
+              onClick={() => onStepClick({ query: step.query, intent: 'timeline' })}
               aria-label={`Learn about ${step.label}`}
             >
               <span className="step-number" aria-hidden="true">{step.id}</span>
               <span className="step-content">
                 <span className="step-label">{step.label}</span>
+                <span className="step-subtitle">{step.subtitle}</span>
               </span>
               <span className="step-arrow" aria-hidden="true">→</span>
             </button>

@@ -8,7 +8,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 
 export default function App() {
   const [journey, setJourney] = useState('Not Registered');
-  const [chatTrigger, setChatTrigger] = useState('');
+  const [chatTrigger, setChatTrigger] = useState(null);
 
   return (
     <ErrorBoundary>
@@ -20,7 +20,7 @@ export default function App() {
         <div className="layout" id="main-content" tabIndex={-1}>
           <aside className="left-panel" aria-label="Navigation panel">
             <JourneySelector journey={journey} setJourney={setJourney} />
-            <Timeline onStepClick={(step) => setChatTrigger(step)} />
+            <Timeline onStepClick={(trigger) => setChatTrigger(trigger)} />
           </aside>
           <section className="center-panel" aria-label="AI Chat">
             <ChatPanel journey={journey} externalQuery={chatTrigger} />
