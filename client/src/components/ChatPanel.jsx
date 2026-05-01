@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import PropTypes from 'prop-types';
 
 /** Generate unique message IDs to avoid array-index keys */
 let messageIdCounter = 0;
@@ -80,6 +81,14 @@ const BADGE_ICONS = {
   'Verified Educational Info': '✅',
 };
 
+/**
+ * ChatPanel Component
+ * Handles the AI conversation interface, intent routing requests, and walkthrough auto-play.
+ * 
+ * @param {Object} props
+ * @param {string} props.journey - The user's current election stage context.
+ * @param {Object} props.externalQuery - External triggers from timeline clicks ({query, intent}).
+ */
 export default function ChatPanel({ journey, externalQuery }) {
   const [query, setQuery] = useState('');
   const [messages, setMessages] = useState([]);
@@ -344,3 +353,19 @@ export default function ChatPanel({ journey, externalQuery }) {
     </section>
   );
 }
+
+/**
+ * ChatPanel component for displaying AI advisory interactions.
+ * @param {Object} props - Component properties.
+ * @param {string} props.journey - Current stage of the user's voting journey.
+ * @param {Object} [props.externalQuery] - Optional query from external sources.
+ * @param {string} [props.externalQuery.query] - The query text.
+ * @param {string} [props.externalQuery.intent] - The intent of the query.
+ */
+ChatPanel.propTypes = {
+  journey: PropTypes.string.isRequired,
+  externalQuery: PropTypes.shape({
+    query: PropTypes.string,
+    intent: PropTypes.string,
+  }),
+};
