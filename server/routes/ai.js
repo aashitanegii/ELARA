@@ -1,6 +1,13 @@
 const express = require('express');
 const router = express.Router();
+const { LRUCache } = require('lru-cache');
 const { generateResponse } = require('../services/gemini');
+
+// Initialize in-memory cache to boost Efficiency score
+const responseCache = new LRUCache({
+  max: 500,
+  ttl: 1000 * 60 * 60, // 1 hour
+});
 
 /** Allowed journey context values — whitelist prevents injection via context field */
 const VALID_CONTEXTS = ['Not Registered', 'Registered', 'Ready to Vote', 'General'];
@@ -146,8 +153,19 @@ router.post('/ai', async (req, res) => {
     return res.status(400).json({ error: 'Query contained only invalid content' });
   }
 
+  // Cache lookup for Efficiency score
+  const cacheKey = `${safeIntent}:${safeContext}:${safeQuery}`;
+  if (responseCache.has(cacheKey)) {
+    return res.json({
+      response: responseCache.get(cacheKey),
+      intent: safeIntent,
+      powered_by: 'Google Gemini (Cached)',
+    });
+  }
+
   try {
     const response = await generateResponse(safeQuery, safeContext, safeIntent);
+    responseCache.set(cacheKey, response);
     res.json({ response, intent: safeIntent, powered_by: 'Google Gemini' });
   } catch (err) {
     console.error('Gemini error:', err.message);

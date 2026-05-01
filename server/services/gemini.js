@@ -132,14 +132,16 @@ const generationConfig = {
  * @returns {Promise<string>} The AI-generated response text.
  */
 async function generateResponse(query, context, intent = 'general') {
+  const systemPrompt = PROMPTS[intent] || PROMPTS.general;
+
   const model = genAI.getGenerativeModel({
     model: 'gemini-2.0-flash',
+    systemInstruction: systemPrompt,
     safetySettings,
     generationConfig,
   });
 
-  const systemPrompt = PROMPTS[intent] || PROMPTS.general;
-  const prompt = `${systemPrompt}\n\nUser journey stage: ${context}\n\nQuestion: ${query}`;
+  const prompt = `User journey stage: ${context}\n\nQuestion: ${query}`;
 
   const result = await model.generateContent(prompt);
   return result.response.text();

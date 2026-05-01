@@ -121,16 +121,30 @@ export default function ChatPanel({ journey, externalQuery }) {
     setLoading(true);
 
     try {
-      const res = await fetch('/api/ai', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          query: q,
-          context: journey,
-          intent,
-          lastTopic: lastTopicRef.current,
-        }),
-      });
+      let attempt = 0;
+      let res;
+      while (attempt < 3) {
+        try {
+          res = await fetch('/api/ai', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              query: q,
+              context: journey,
+              intent,
+              lastTopic: lastTopicRef.current,
+            }),
+          });
+          if (res.ok) break;
+        } catch (e) {
+          // fetch error
+        }
+        attempt++;
+        if (attempt < 3) await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt - 1))); // Exponential backoff: 1s, 2s
+      }
+
+      if (!res || !res.ok) throw new Error('Network error');
+
       lastTopicRef.current = detectTopic(q);
       const data = await res.json();
       const raw = data.response || data.error;
@@ -142,7 +156,7 @@ export default function ChatPanel({ journey, externalQuery }) {
     } catch {
       setMessages((prev) => [
         ...prev,
-        createMessage('ai', 'Service unavailable. Please try again.'),
+        createMessage('ai', 'Service unavailable after retries. Please try again.', ['Offline Mode']),
       ]);
     } finally {
       setLoading(false);
@@ -230,7 +244,7 @@ export default function ChatPanel({ journey, externalQuery }) {
       </div>
 
       {walkthroughActive && (
-        <div className="walkthrough-progress" aria-live="polite">
+        <div className="walkthrough-progress" aria-live="assertive" role="region" aria-label="Walkthrough progress">
           <span className="walkthrough-progress-label">
             🎓 Guided Walkthrough — Stage {Math.min(walkthroughStep, 5)} of 5
           </span>

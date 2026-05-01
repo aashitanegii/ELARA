@@ -3,6 +3,7 @@ const express = require('express');
 const helmet = require('helmet');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
+const hpp = require('hpp');
 const path = require('path');
 const aiRoute = require('./routes/ai');
 const healthRoute = require('./routes/health');
@@ -11,7 +12,17 @@ const app = express();
 const PORT = process.env.PORT || 8080;
 
 // Security middleware
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:"],
+      connectSrc: ["'self'", "https://generativelanguage.googleapis.com"],
+    },
+  },
+}));
 app.use(cors({
   origin: process.env.ALLOWED_ORIGINS
     ? process.env.ALLOWED_ORIGINS.split(',')
@@ -20,6 +31,7 @@ app.use(cors({
   allowedHeaders: ['Content-Type'],
 }));
 app.use(express.json({ limit: '10kb' }));
+app.use(hpp()); // Protect against HTTP Parameter Pollution attacks
 app.use(
   rateLimit({
     windowMs: 60 * 1000,

@@ -103,10 +103,10 @@ describe('ELARA API Tests', () => {
     it('defaults context to General for invalid context value', async () => {
       await request(app)
         .post('/api/ai')
-        .send({ query: 'What is an election?', context: 'MALICIOUS_CONTEXT' });
+        .send({ query: 'What is an election in India?', context: 'MALICIOUS_CONTEXT' });
 
       expect(generateResponse).toHaveBeenCalledWith(
-        'What is an election?',
+        'What is an election in India?',
         'General',
         'general'
       );
@@ -127,10 +127,10 @@ describe('ELARA API Tests', () => {
     it('defaults intent to general for invalid intent value', async () => {
       await request(app)
         .post('/api/ai')
-        .send({ query: 'How does voting work?', intent: 'HACK_INTENT' });
+        .send({ query: 'How does voting work in the UK?', intent: 'HACK_INTENT' });
 
       expect(generateResponse).toHaveBeenCalledWith(
-        'How does voting work?',
+        'How does voting work in the UK?',
         'General',
         'general'
       );
