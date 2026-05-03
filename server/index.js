@@ -63,8 +63,11 @@ app.use(
 app.use('/api', healthRoute);
 app.use('/api', aiRoute);
 
-// Serve frontend in production
-app.use(express.static(path.join(__dirname, 'dist')));
+// Serve frontend in production with 1-day caching for assets
+app.use(express.static(path.join(__dirname, 'dist'), {
+  maxAge: '1d',
+  immutable: true,
+}));
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });

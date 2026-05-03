@@ -1,5 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getFirestore, collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { getAuth, signInAnonymously } from 'firebase/auth';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -12,12 +13,18 @@ const firebaseConfig = {
 
 let app;
 export let db = null;
+export let auth = null;
 
 try {
   // Only initialize if API key is present to prevent crashes in unconfigured environments
   if (firebaseConfig.apiKey) {
     app = initializeApp(firebaseConfig);
     db = getFirestore(app);
+    auth = getAuth(app);
+    signInAnonymously(auth).catch(() => {
+      // Gracefully handle auth failure in local/dev environments
+      console.warn('Anonymous Auth failed. Continuing as guest.');
+    });
   } else {
     console.warn('Firebase config missing. Firestore analytics disabled.');
   }

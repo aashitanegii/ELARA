@@ -34,6 +34,29 @@ export default function JourneySelector({ journey, setJourney }) {
         <span className="context-dot" aria-hidden="true"></span>
         Active context: <strong>{journey}</strong>
       </div>
+
+      <div className="card official-resources" style={{ marginTop: '16px', borderLeft: '4px solid var(--accent)', background: 'var(--bg-primary)' }}>
+        <h3 style={{ fontSize: '0.8rem', color: 'var(--text-primary)', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span aria-hidden="true">🏛️</span> Official Resources
+        </h3>
+        <ul style={{ listStyle: 'none', fontSize: '0.75rem', display: 'flex', flexDirection: 'column', gap: '10px', padding: 0 }}>
+          <li>
+            <a href="https://voters.eci.gov.in" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent-light)', textDecoration: 'none' }}>
+              Register to Vote (Form 6) ↗
+            </a>
+          </li>
+          <li>
+            <a href="https://voters.eci.gov.in/download-e-epic" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent-light)', textDecoration: 'none' }}>
+              Download e-EPIC ↗
+            </a>
+          </li>
+          <li>
+            <a href="https://electoralsearch.eci.gov.in" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent-light)', textDecoration: 'none' }}>
+              Search Name in Roll ↗
+            </a>
+          </li>
+        </ul>
+      </div>
     </section>
   );
 }

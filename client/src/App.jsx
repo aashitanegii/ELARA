@@ -8,7 +8,11 @@ import ErrorBoundary from './components/ErrorBoundary';
 const JargonBuster = lazy(() => import('./components/JargonBuster'));
 
 export default function App() {
-  const [journey, setJourney] = useState('Not Registered');
+  // Initialize journey from localStorage, default to 'Not Registered'
+  const [journey, setJourney] = useState(() => {
+    return localStorage.getItem('elara_journey') || 'Not Registered';
+  });
+
   const [chatTrigger, setChatTrigger] = useState(null);
   
   // Initialize language from localStorage, default to 'en'
@@ -16,9 +20,17 @@ export default function App() {
     return localStorage.getItem('elara_lang') || 'en';
   });
 
-  // Dynamically update the HTML lang attribute for accessibility and persist to localStorage
+  // Persist journey to localStorage
+  useEffect(() => {
+    localStorage.setItem('elara_journey', journey);
+  }, [journey]);
+
+  // Dynamically update the HTML lang, document title, and persist lang
   useEffect(() => {
     document.documentElement.lang = lang;
+    document.title = lang === 'hi' 
+      ? 'एलारा — चुनाव मार्गदर्शन सहायक' 
+      : 'ELARA — Election Assistance & Resource Assistant';
     localStorage.setItem('elara_lang', lang);
   }, [lang]);
 

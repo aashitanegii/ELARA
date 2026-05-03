@@ -43,12 +43,13 @@
   --transition: 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
 
   /* Font */
-  --font: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font: 'Inter', 'Noto Sans Devanagari', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
 /* --- Base --- */
 html {
   scroll-behavior: smooth;
+  scroll-padding-top: 100px; /* Prevent header overlap on anchor scroll */
 }
 
 body {
@@ -140,6 +141,7 @@ h2 {
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+  will-change: padding, background; /* Hardware acceleration for scroll collapse */
 }
 
 .header.header-compact {
@@ -291,7 +293,13 @@ h2 {
 
 .lang-toggle:hover {
   background: var(--bg-elevated);
-  border-color: var(--text-muted);
+  border-color: var(--accent-border);
+  color: var(--accent-light);
+  box-shadow: 0 0 12px var(--accent-glow);
+}
+
+.lang-toggle:active {
+  transform: scale(0.98);
 }
 
 /* --- Quick Prompts --- */
