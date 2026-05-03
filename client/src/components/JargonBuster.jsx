@@ -1,43 +1,9 @@
 import { useState } from 'react';
-
-/**
- * Lightweight markdown renderer — converts **bold** and ## headers to React elements.
- */
-function renderMarkdown(text) {
-  if (!text) return null;
-  const lines = text.split('\n');
-  const elements = [];
-  let key = 0;
-  for (const line of lines) {
-    key++;
-    if (/^#{1,3}\s/.test(line)) {
-      const content = line.replace(/^#{1,3}\s*/, '');
-      elements.push(<strong key={key} className="md-heading">{renderInline(content)}</strong>);
-      elements.push(<br key={key + 'br'} />);
-      continue;
-    }
-    if (line.trim() === '') { elements.push(<br key={key} />); continue; }
-    elements.push(<span key={key}>{renderInline(line)}</span>);
-    elements.push(<br key={key + 'br'} />);
-  }
-  return elements;
-}
-
-function renderInline(text) {
-  const parts = [];
-  let remaining = text;
-  let idx = 0;
-  const boldRegex = /\*\*(.+?)\*\*/g;
-  let lastIndex = 0;
-  let match;
-  while ((match = boldRegex.exec(remaining)) !== null) {
-    if (match.index > lastIndex) parts.push(remaining.slice(lastIndex, match.index));
-    parts.push(<strong key={`b${idx++}`}>{match[1]}</strong>);
-    lastIndex = boldRegex.lastIndex;
-  }
-  if (lastIndex < remaining.length) parts.push(remaining.slice(lastIndex));
-  return parts.length > 0 ? parts : text;
-}
+import PropTypes from 'prop-types';
+import { renderMarkdown, parseBadges } from '../utils/markdown';
+import { BADGE_ICONS } from '../utils/constants';
+import { logEvent } from '../analytics';
+import { logFirestoreInteraction } from '../firebase';
 
 const QUICK_TERMS = [
   'Electoral College',
@@ -46,24 +12,24 @@ const QUICK_TERMS = [
   'VVPAT',
   'EPIC',
   'First Past The Post',
+  'NOTA',
+  'EVM',
 ];
 
-export default function JargonBuster({ journey }) {
+/**
+ * JargonBuster Component
+ * Provides plain-language explanations of election terminology.
+ * Features quick-pick chips for common terms and free-text input.
+ *
+ * @param {Object} props
+ * @param {string} props.journey - The user's current election stage context.
+ * @param {string} props.lang - Response language code ('en' or 'hi').
+ */
+export default function JargonBuster({ journey, lang = 'en' }) {
   const [input, setInput] = useState('');
   const [result, setResult] = useState('');
   const [badges, setBadges] = useState([]);
   const [loading, setLoading] = useState(false);
-
-  /** Parse [BADGE: ...] tags from response */
-  function parseBadges(text) {
-    const badgeRegex = /\[BADGE:\s*([^\]]+)\]/g;
-    const found = [];
-    let match;
-    while ((match = badgeRegex.exec(text)) !== null) {
-      found.push(match[1].trim());
-    }
-    return { cleanText: text.replace(badgeRegex, '').trim(), badges: found };
-  }
 
   const handleBust = async (term) => {
     const termToUse = term || input;
@@ -83,6 +49,7 @@ export default function JargonBuster({ journey }) {
           query: `Explain this election term in plain language for a beginner: "${termToUse}"`,
           context: journey,
           intent: 'jargon',
+          lang,
         }),
       });
       const data = await res.json();
@@ -90,6 +57,9 @@ export default function JargonBuster({ journey }) {
       const parsed = parseBadges(raw);
       setResult(parsed.cleanText);
       setBadges(parsed.badges);
+
+      logEvent('jargon_lookup', { term: termToUse, lang });
+      logFirestoreInteraction('jargon', { query: termToUse, lang });
     } catch {
       setResult('Service unavailable. Please try again.');
     } finally {
@@ -100,13 +70,6 @@ export default function JargonBuster({ journey }) {
   const handleSubmit = (e) => {
     if (e) e.preventDefault();
     handleBust();
-  };
-
-  const BADGE_ICONS = {
-    'Beginner Friendly': '📘',
-    'Step-by-Step Guidance': '🧭',
-    'Timeline Included': '⏱',
-    'Verified Educational Info': '✅',
   };
 
   return (
@@ -183,3 +146,8 @@ export default function JargonBuster({ journey }) {
     </section>
   );
 }
+
+JargonBuster.propTypes = {
+  journey: PropTypes.string.isRequired,
+  lang: PropTypes.oneOf(['en', 'hi']),
+};

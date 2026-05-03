@@ -18,12 +18,14 @@ RULES:
 - Include real deadlines and timeframes where applicable
 - Mention what happens AFTER they complete the current step
 - Keep language plain — assume zero prior knowledge
+- Always cite official sources: voters.eci.gov.in, nvsp.in
 
 FORMAT your response with:
 1. A one-line summary of where they are
 2. Numbered next steps (3-6 steps)
 3. A "Documents needed" section if applicable
 4. A "What happens next" closing line
+5. An "Official resources" line with relevant links
 
 End with one of these badges on its own line:
 [BADGE: Beginner Friendly] or [BADGE: Step-by-Step Guidance] or [BADGE: Next Step Ready]
@@ -44,6 +46,7 @@ RULES:
 - Explain what the NEXT stage is after this one
 - Use bullet points and clear structure
 - Include real-world context (e.g. "In India, the BLO visits your address…")
+- Cite official sources where relevant (eci.gov.in, voters.eci.gov.in)
 
 FORMAT your response with:
 1. Stage name and one-line summary
@@ -99,6 +102,7 @@ RULES:
 - Keep language plain and accessible — assume no prior knowledge
 - If the question is about a specific stage, explain it thoroughly
 - If the question is about a term, define it clearly
+- Cite official sources (eci.gov.in, voters.eci.gov.in) when relevant
 
 FORMAT: Use clear paragraphs or numbered lists. Keep responses focused and informative.
 
@@ -124,14 +128,20 @@ const generationConfig = {
   maxOutputTokens: 1024,
 };
 
+/** Hindi language instruction appended to prompts when lang is 'hi' */
+const HINDI_INSTRUCTION = '\n\nIMPORTANT: Respond entirely in Hindi (Devanagari script). ' +
+  'Keep formatting markers (**bold**, ##, [BADGE:]) in English but write ALL explanatory content in Hindi. ' +
+  'Use simple Hindi that a first-time voter can understand.';
+
 /**
  * Generate an intent-aware response from Google Gemini.
  * @param {string} query - The user's sanitized question.
  * @param {string} context - The user's journey stage (e.g. "Not Registered").
  * @param {string} intent - The feature intent: journey | timeline | jargon | general.
+ * @param {string} [lang='en'] - Response language: 'en' for English, 'hi' for Hindi.
  * @returns {Promise<string>} The AI-generated response text.
  */
-async function generateResponse(query, context, intent = 'general') {
+async function generateResponse(query, context, intent = 'general', lang = 'en') {
   const systemPrompt = PROMPTS[intent] || PROMPTS.general;
 
   const model = genAI.getGenerativeModel({
@@ -141,7 +151,8 @@ async function generateResponse(query, context, intent = 'general') {
     generationConfig,
   });
 
-  const prompt = `User journey stage: ${context}\n\nQuestion: ${query}`;
+  const langSuffix = lang === 'hi' ? HINDI_INSTRUCTION : '';
+  const prompt = `User journey stage: ${context}\n\nQuestion: ${query}${langSuffix}`;
 
   const result = await model.generateContent(prompt);
   return result.response.text();

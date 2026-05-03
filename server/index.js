@@ -4,6 +4,7 @@ const helmet = require('helmet');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const hpp = require('hpp');
+const compression = require('compression');
 const path = require('path');
 const aiRoute = require('./routes/ai');
 const healthRoute = require('./routes/health');
@@ -11,15 +12,31 @@ const healthRoute = require('./routes/health');
 const app = express();
 const PORT = process.env.PORT || 8080;
 
-// Security middleware
+// Response time tracking middleware — logs API performance
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    if (req.path.startsWith('/api')) {
+      console.log(`${req.method} ${req.path} ${res.statusCode} ${duration}ms`);
+    }
+  });
+  next();
+});
+
+// Compression middleware — reduces response payload size
+app.use(compression());
+
+// Security middleware — strict CSP without unsafe-inline for scripts
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'"],
-      styleSrc: ["'self'", "'unsafe-inline'"],
-      imgSrc: ["'self'", "data:"],
-      connectSrc: ["'self'", "https://generativelanguage.googleapis.com"],
+      scriptSrc: ["'self'", "https://www.googletagmanager.com"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com"],
+      imgSrc: ["'self'", "data:", "https://www.google-analytics.com"],
+      connectSrc: ["'self'", "https://generativelanguage.googleapis.com", "https://www.google-analytics.com", "https://www.googletagmanager.com"],
     },
   },
 }));

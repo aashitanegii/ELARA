@@ -1,5 +1,9 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, memo } from 'react';
 import PropTypes from 'prop-types';
+import { renderMarkdown, parseBadges } from '../utils/markdown';
+import { BADGE_ICONS } from '../utils/constants';
+import { logEvent } from '../analytics';
+import { logFirestoreInteraction } from '../firebase';
 
 /** Generate unique message IDs to avoid array-index keys */
 let messageIdCounter = 0;
@@ -7,89 +11,23 @@ function createMessage(role, text, badges = []) {
   return { id: ++messageIdCounter, role, text, badges };
 }
 
-/** Parse [BADGE: ...] tags from response text and return { cleanText, badges } */
-function parseBadges(text) {
-  const badgeRegex = /\[BADGE:\s*([^\]]+)\]/g;
-  const badges = [];
-  let match;
-  while ((match = badgeRegex.exec(text)) !== null) {
-    badges.push(match[1].trim());
-  }
-  const cleanText = text.replace(badgeRegex, '').trim();
-  return { cleanText, badges };
-}
-
-/** Badge icon mapping */
-/**
- * Lightweight markdown renderer — converts **bold**, ## headers, and lists to React elements.
- * No external dependencies.
- */
-function renderMarkdown(text) {
-  if (!text) return null;
-  const lines = text.split('\n');
-  const elements = [];
-  let key = 0;
-
-  for (const line of lines) {
-    key++;
-    // ## Header
-    if (/^#{1,3}\s/.test(line)) {
-      const content = line.replace(/^#{1,3}\s*/, '');
-      elements.push(<strong key={key} className="md-heading">{renderInline(content)}</strong>);
-      elements.push(<br key={key + 'br'} />);
-      continue;
-    }
-    // Empty line = spacing
-    if (line.trim() === '') {
-      elements.push(<br key={key} />);
-      continue;
-    }
-    // Regular line with inline formatting
-    elements.push(<span key={key}>{renderInline(line)}</span>);
-    elements.push(<br key={key + 'br'} />);
-  }
-  return elements;
-}
-
-/** Render inline **bold** and *italic* within a single line */
-function renderInline(text) {
-  const parts = [];
-  let remaining = text;
-  let idx = 0;
-  // Match **bold** patterns
-  const boldRegex = /\*\*(.+?)\*\*/g;
-  let lastIndex = 0;
-  let match;
-  while ((match = boldRegex.exec(remaining)) !== null) {
-    if (match.index > lastIndex) {
-      parts.push(remaining.slice(lastIndex, match.index));
-    }
-    parts.push(<strong key={`b${idx++}`}>{match[1]}</strong>);
-    lastIndex = boldRegex.lastIndex;
-  }
-  if (lastIndex < remaining.length) {
-    parts.push(remaining.slice(lastIndex));
-  }
-  return parts.length > 0 ? parts : text;
-}
-
-const BADGE_ICONS = {
-  'Beginner Friendly': '📘',
-  'Step-by-Step Guidance': '🧭',
-  'Next Step Ready': '🧭',
-  'Timeline Included': '⏱',
-  'Verified Educational Info': '✅',
+/** Journey step progression map */
+const STEP_MAP = {
+  'Not Registered': { current: 'Registration', next: 'Verification' },
+  'Registered': { current: 'Verification', next: 'Polling Day' },
+  'Ready to Vote': { current: 'Polling Day', next: 'Results' },
 };
 
 /**
  * ChatPanel Component
  * Handles the AI conversation interface, intent routing requests, and walkthrough auto-play.
- * 
+ *
  * @param {Object} props
  * @param {string} props.journey - The user's current election stage context.
  * @param {Object} props.externalQuery - External triggers from timeline clicks ({query, intent}).
+ * @param {string} props.lang - Response language code ('en' or 'hi').
  */
-export default function ChatPanel({ journey, externalQuery }) {
+function ChatPanel({ journey, externalQuery, lang = 'en' }) {
   const [query, setQuery] = useState('');
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -113,13 +51,6 @@ export default function ChatPanel({ journey, externalQuery }) {
     return null;
   }
 
-  /** Journey step progression map */
-  const STEP_MAP = {
-    'Not Registered': { current: 'Registration', next: 'Verification' },
-    'Registered': { current: 'Verification', next: 'Polling Day' },
-    'Ready to Vote': { current: 'Polling Day', next: 'Results' },
-  };
-
   /** Send a message to the ELARA API */
   const sendMessage = useCallback(async (messageText, intent = 'general') => {
     const q = messageText.trim();
@@ -141,15 +72,16 @@ export default function ChatPanel({ journey, externalQuery }) {
               query: q,
               context: journey,
               intent,
+              lang,
               lastTopic: lastTopicRef.current,
             }),
           });
           if (res.ok) break;
         } catch (e) {
-          // fetch error
+          // Network error — retry with backoff
         }
         attempt++;
-        if (attempt < 3) await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt - 1))); // Exponential backoff: 1s, 2s
+        if (attempt < 3) await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt - 1)));
       }
 
       if (!res || !res.ok) throw new Error('Network error');
@@ -162,6 +94,9 @@ export default function ChatPanel({ journey, externalQuery }) {
         ...prev,
         createMessage('ai', cleanText, badges),
       ]);
+
+      logEvent('ai_response', { intent, journey, lang });
+      logFirestoreInteraction(intent, { query: q, context: journey, lang });
     } catch {
       setMessages((prev) => [
         ...prev,
@@ -170,7 +105,7 @@ export default function ChatPanel({ journey, externalQuery }) {
     } finally {
       setLoading(false);
     }
-  }, [journey, loading]);
+  }, [journey, loading, lang]);
 
   // Smart Guidance: auto-trigger on first load when "Not Registered"
   useEffect(() => {
@@ -219,12 +154,14 @@ export default function ChatPanel({ journey, externalQuery }) {
   const handleSubmit = (e) => {
     e.preventDefault();
     sendMessage(query, 'general');
+    logEvent('user_question', { journey, lang });
   };
 
   const startWalkthrough = () => {
     setMessages([]);
     setWalkthroughStep(0);
     setWalkthroughActive(true);
+    logEvent('start_walkthrough');
   };
 
   return (
@@ -266,7 +203,7 @@ export default function ChatPanel({ journey, externalQuery }) {
         </div>
       )}
 
-      <div className="chat-messages" role="log" aria-live="polite" aria-label="Chat messages">
+      <div className="chat-messages" role="log" aria-live="polite" aria-busy={loading} aria-label="Chat messages">
         {messages.length === 0 && !loading && (
           <div className="chat-empty">
             <div className="chat-empty-icon" aria-hidden="true">🗳️</div>
@@ -313,7 +250,7 @@ export default function ChatPanel({ journey, externalQuery }) {
         {loading && (
           <div className="message ai loading-message" aria-live="assertive" aria-label="ELARA is thinking">
             <span className="message-label">🤖 ELARA</span>
-            <div className="typing-indicator">
+            <div className="typing-indicator" role="status" aria-label="Loading response">
               <span></span>
               <span></span>
               <span></span>
@@ -350,22 +287,21 @@ export default function ChatPanel({ journey, externalQuery }) {
           Ask
         </button>
       </form>
+
+      <div className="chat-disclaimer" role="note">
+        <small>⚠️ ELARA provides educational guidance only. For official information, visit <a href="https://eci.gov.in" target="_blank" rel="noopener noreferrer">eci.gov.in</a></small>
+      </div>
     </section>
   );
 }
 
-/**
- * ChatPanel component for displaying AI advisory interactions.
- * @param {Object} props - Component properties.
- * @param {string} props.journey - Current stage of the user's voting journey.
- * @param {Object} [props.externalQuery] - Optional query from external sources.
- * @param {string} [props.externalQuery.query] - The query text.
- * @param {string} [props.externalQuery.intent] - The intent of the query.
- */
 ChatPanel.propTypes = {
   journey: PropTypes.string.isRequired,
   externalQuery: PropTypes.shape({
     query: PropTypes.string,
     intent: PropTypes.string,
   }),
+  lang: PropTypes.oneOf(['en', 'hi']),
 };
+
+export default memo(ChatPanel);

@@ -1,3 +1,5 @@
+import PropTypes from 'prop-types';
+
 const stages = [
   { label: 'Not Registered', icon: '📋', description: 'Start your voting journey' },
   { label: 'Registered', icon: '✅', description: 'Already registered to vote' },
@@ -35,3 +37,8 @@ export default function JourneySelector({ journey, setJourney }) {
     </section>
   );
 }
+
+JourneySelector.propTypes = {
+  journey: PropTypes.string.isRequired,
+  setJourney: PropTypes.func.isRequired,
+};

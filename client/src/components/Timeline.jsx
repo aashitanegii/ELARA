@@ -1,3 +1,5 @@
+import PropTypes from 'prop-types';
+
 const steps = [
   {
     id: 1,
@@ -36,7 +38,7 @@ const steps = [
   },
 ];
 
-export default function Timeline({ onStepClick }) {
+function Timeline({ onStepClick }) {
   return (
     <section className="card timeline" aria-labelledby="timeline-heading">
       <h2 id="timeline-heading">
@@ -65,3 +67,9 @@ export default function Timeline({ onStepClick }) {
     </section>
   );
 }
+
+Timeline.propTypes = {
+  onStepClick: PropTypes.func.isRequired,
+};
+
+export default Timeline;
