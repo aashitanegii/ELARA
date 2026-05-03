@@ -10,11 +10,16 @@ const JargonBuster = lazy(() => import('./components/JargonBuster'));
 export default function App() {
   const [journey, setJourney] = useState('Not Registered');
   const [chatTrigger, setChatTrigger] = useState(null);
-  const [lang, setLang] = useState('en');
+  
+  // Initialize language from localStorage, default to 'en'
+  const [lang, setLang] = useState(() => {
+    return localStorage.getItem('elara_lang') || 'en';
+  });
 
-  // Dynamically update the HTML lang attribute for accessibility
+  // Dynamically update the HTML lang attribute for accessibility and persist to localStorage
   useEffect(() => {
     document.documentElement.lang = lang;
+    localStorage.setItem('elara_lang', lang);
   }, [lang]);
 
   return (

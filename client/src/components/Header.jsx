@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { SUPPORTED_LANGUAGES } from '../utils/constants';
 
@@ -11,13 +12,23 @@ const TRUST_BADGES = [
 
 /**
  * Header Component
- * Premium hero banner with brand identity, trust signals, and language toggle.
+ * Premium hero banner that collapses into a compact navbar on scroll.
  *
  * @param {Object} props
  * @param {string} props.lang - Current language code ('en' or 'hi').
  * @param {Function} props.setLang - Setter to toggle language.
  */
 export default function Header({ lang = 'en', setLang }) {
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 50);
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
   const toggleLang = () => {
     const newLang = lang === 'en' ? 'hi' : 'en';
     setLang(newLang);
@@ -26,7 +37,7 @@ export default function Header({ lang = 'en', setLang }) {
   const targetLang = lang === 'en' ? SUPPORTED_LANGUAGES.hi : SUPPORTED_LANGUAGES.en;
 
   return (
-    <header className="header" role="banner">
+    <header className={`header ${isScrolled ? 'header-compact' : ''}`} role="banner">
       <div className="header-inner">
         <div className="header-left">
           <div className="header-brand">
