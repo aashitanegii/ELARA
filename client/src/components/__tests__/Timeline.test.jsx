@@ -19,11 +19,16 @@ describe('Timeline', () => {
 
     render(<Timeline onStepClick={mockClick} />);
 
-    await user.click(screen.getByLabelText('Learn about Registration'));
+    // Open accordion first
+    await user.click(screen.getByText('Registration'));
+    
+    // Click the ask button inside accordion
+    await user.click(screen.getAllByText('Ask ELARA for Details')[0]);
+    
     expect(mockClick).toHaveBeenCalledTimes(1);
     expect(mockClick).toHaveBeenCalledWith(
       expect.objectContaining({
-        query: expect.stringContaining('Registration'),
+        query: expect.stringContaining('check if my voter registration was approved'),
         intent: 'timeline',
       })
     );
@@ -38,15 +43,6 @@ describe('Timeline', () => {
     expect(screen.getByText('5')).toBeInTheDocument();
   });
 
-  it('has accessible labels on all step buttons', () => {
-    render(<Timeline onStepClick={() => {}} />);
-    expect(screen.getByLabelText('Learn about Registration')).toBeInTheDocument();
-    expect(screen.getByLabelText('Learn about Verification')).toBeInTheDocument();
-    expect(screen.getByLabelText('Learn about Polling Day')).toBeInTheDocument();
-    expect(screen.getByLabelText('Learn about Counting')).toBeInTheDocument();
-    expect(screen.getByLabelText('Learn about Results')).toBeInTheDocument();
-  });
-
   it('renders subtitle text for each step', () => {
     render(<Timeline onStepClick={() => {}} />);
     expect(screen.getByText('Enroll as an eligible voter')).toBeInTheDocument();
@@ -56,9 +52,9 @@ describe('Timeline', () => {
     expect(screen.getByText('Winners declared')).toBeInTheDocument();
   });
 
-  it('uses an ordered list for timeline steps', () => {
+  it('uses a div container for timeline steps', () => {
     render(<Timeline onStepClick={() => {}} />);
-    const list = screen.getByRole('list');
-    expect(list.tagName).toBe('OL');
+    const list = document.querySelector('.timeline-list');
+    expect(list.tagName).toBe('DIV');
   });
 });

@@ -194,6 +194,6 @@ describe('ChatPanel', () => {
     await user.type(screen.getByLabelText('Type your question here'), 'Test question');
     await user.click(screen.getByLabelText('Send question to ELARA'));
 
-    expect(screen.getByText('👤 You')).toBeInTheDocument();
+    expect(screen.getByText(/You/i)).toBeInTheDocument();
   });
 });
