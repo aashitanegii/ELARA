@@ -223,6 +223,12 @@ function ChatPanel({ journey, externalQuery, lang = 'en' }) {
               <span aria-hidden="true">🎓</span>
               Start Guided Walkthrough
             </button>
+            <div className="quick-prompts" aria-label="Suggested questions">
+              <button className="quick-prompt-chip" onClick={() => sendMessage("How do I register to vote?")}>How do I register?</button>
+              <button className="quick-prompt-chip" onClick={() => sendMessage("What documents do I need to vote?")}>What documents do I need?</button>
+              <button className="quick-prompt-chip" onClick={() => sendMessage("What is NOTA?")}>What is NOTA?</button>
+              <button className="quick-prompt-chip" onClick={() => sendMessage("How does election day voting work?")}>Voting Day Steps</button>
+            </div>
           </div>
         )}
         {messages.map((msg) => (
@@ -232,9 +238,15 @@ function ChatPanel({ journey, externalQuery, lang = 'en' }) {
             aria-label={`${msg.role === 'ai' ? 'ELARA' : 'You'}: ${msg.text.substring(0, 100)}`}
           >
             <span className="message-label">
-              {msg.role === 'ai' ? '🤖 ELARA' : '👤 You'}
+              {msg.role === 'ai' ? (
+                <><span className="avatar" aria-hidden="true">🤖</span> ELARA</>
+              ) : (
+                <><span className="avatar" aria-hidden="true">👤</span> You</>
+              )}
             </span>
-            <div className="message-text">{msg.role === 'ai' ? renderMarkdown(msg.text) : msg.text}</div>
+            <div className="message-text" dir={lang === 'hi' ? 'auto' : 'ltr'}>
+              {msg.role === 'ai' ? renderMarkdown(msg.text) : msg.text}
+            </div>
             {msg.badges && msg.badges.length > 0 && (
               <div className="trust-badges" aria-label="Response quality indicators">
                 {msg.badges.map((badge) => (
@@ -249,7 +261,9 @@ function ChatPanel({ journey, externalQuery, lang = 'en' }) {
         ))}
         {loading && (
           <div className="message ai loading-message" aria-live="assertive" aria-label="ELARA is thinking">
-            <span className="message-label">🤖 ELARA</span>
+            <span className="message-label">
+              <span className="avatar" aria-hidden="true">🤖</span> ELARA
+            </span>
             <div className="typing-indicator" role="status" aria-label="Loading response">
               <span></span>
               <span></span>

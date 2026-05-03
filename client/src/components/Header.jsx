@@ -1,9 +1,17 @@
 import PropTypes from 'prop-types';
 import { SUPPORTED_LANGUAGES } from '../utils/constants';
 
+/** Trust indicators shown below hero text */
+const TRUST_BADGES = [
+  { icon: '✦', label: 'Gemini Powered' },
+  { icon: '📘', label: 'Beginner Friendly' },
+  { icon: '♿', label: 'Accessible' },
+  { icon: '🏛️', label: 'Official Sources' },
+];
+
 /**
  * Header Component
- * Displays the ELARA brand, Gemini badge, and Hindi/English language toggle.
+ * Premium hero banner with brand identity, trust signals, and language toggle.
  *
  * @param {Object} props
  * @param {string} props.lang - Current language code ('en' or 'hi').
@@ -20,11 +28,25 @@ export default function Header({ lang = 'en', setLang }) {
   return (
     <header className="header" role="banner">
       <div className="header-inner">
-        <div className="header-brand">
-          <div className="logo-icon" aria-hidden="true">🗳️</div>
-          <div>
-            <h1 className="header-title">ELARA</h1>
-            <p className="header-subtitle">Election Assistance & Resource Assistant</p>
+        <div className="header-left">
+          <div className="header-brand">
+            <div className="logo-icon" aria-hidden="true">🗳️</div>
+            <div>
+              <h1 className="header-title">ELARA</h1>
+              <p className="header-subtitle">
+                AI Election Guide for India <span aria-hidden="true">🇮🇳</span>
+              </p>
+            </div>
+          </div>
+          <p className="header-tagline">
+            Understand registration, voting, timelines, and election terms — instantly.
+          </p>
+          <div className="header-trust" aria-label="Trust indicators">
+            {TRUST_BADGES.map((b) => (
+              <span key={b.label} className="trust-pill">
+                <span aria-hidden="true">{b.icon}</span> {b.label}
+              </span>
+            ))}
           </div>
         </div>
         <div className="header-actions">
